@@ -1,371 +1,348 @@
---[================================================================]--
---  DON scripts - Enhanced Client Dashboard
---[================================================================]--
+
+-- DON scripts | Movable Red & Black GUI
+-- Roblox Studio | LocalScript
+-- Open/close + draggable main panel and floating button
 
 local Players = game:GetService("Players")
-local CoreGui = game:GetService("CoreGui")
-local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
-local LocalPlayer = Players.LocalPlayer
 
--- UI Root Container Selection
-local guiParent = LocalPlayer:WaitForChild("PlayerGui")
-pcall(function()
-	if CoreGui:IsLoaded() then
-		guiParent = CoreGui
-	end
-end)
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
 
-if guiParent:FindFirstChild("DON_Scripts_UI") then
-	guiParent.DON_Scripts_UI:Destroy()
+local oldGui = playerGui:FindFirstChild("DONscripts")
+if oldGui then
+    oldGui:Destroy()
 end
 
-----------------------------------------------------
--- 1. THEMES CONFIGURATION
-----------------------------------------------------
-local Themes = {
-	Dark = {
-		MainBackground = Color3.fromRGB(24, 24, 28),
-		HeaderBackground = Color3.fromRGB(35, 35, 42),
-		ContainerBackground = Color3.fromRGB(32, 32, 38),
-		TextColor = Color3.fromRGB(240, 240, 240),
-		AccentColor = Color3.fromRGB(41, 128, 185)
-	},
-	Light = {
-		MainBackground = Color3.fromRGB(240, 240, 245),
-		HeaderBackground = Color3.fromRGB(220, 220, 230),
-		ContainerBackground = Color3.fromRGB(225, 225, 235),
-		TextColor = Color3.fromRGB(30, 30, 30),
-		AccentColor = Color3.fromRGB(52, 152, 219)
-	}
+local gui = Instance.new("ScreenGui")
+gui.Name = "DONscripts"
+gui.ResetOnSpawn = false
+gui.Parent = playerGui
+
+local RED = Color3.fromRGB(255, 20, 55)
+local DARK = Color3.fromRGB(15, 13, 17)
+local ROW = Color3.fromRGB(29, 25, 31)
+local WHITE = Color3.fromRGB(245, 245, 250)
+local GRAY = Color3.fromRGB(165, 160, 175)
+local OFF = Color3.fromRGB(65, 55, 62)
+
+local function create(class, props, parent)
+    local obj = Instance.new(class)
+    for key, value in pairs(props) do
+        obj[key] = value
+    end
+    obj.Parent = parent
+    return obj
+end
+
+-- Main panel
+local main = create("Frame", {
+    Name = "MainPanel",
+    Size = UDim2.fromOffset(330, 390),
+    Position = UDim2.new(0.5, -165, 0.5, -195),
+    BackgroundColor3 = DARK,
+    BorderSizePixel = 0,
+    Active = true,
+}, gui)
+
+create("UICorner", {
+    CornerRadius = UDim.new(0, 12)
+}, main)
+
+create("UIStroke", {
+    Color = RED,
+    Thickness = 1.5
+}, main)
+
+-- Floating reopen button
+local openButton = create("TextButton", {
+    Name = "OpenButton",
+    Size = UDim2.fromOffset(120, 42),
+    Position = UDim2.new(0, 15, 0.5, -21),
+    BackgroundColor3 = DARK,
+    Text = "DON scripts",
+    TextColor3 = RED,
+    TextSize = 15,
+    Font = Enum.Font.GothamBold,
+    Visible = false,
+    Active = true,
+    AutoButtonColor = true,
+}, gui)
+
+create("UICorner", {
+    CornerRadius = UDim.new(0, 9)
+}, openButton)
+
+create("UIStroke", {
+    Color = RED,
+    Thickness = 1.5
+}, openButton)
+
+-- Drag either panel with mouse or touch.
+-- The title/header is the drag handle for the main panel,
+-- so buttons and sliders remain usable.
+local function makeDraggable(frame, handle)
+    local dragging = false
+    local dragStart
+    local startPosition
+    local activeInput
+
+    handle.Active = true
+
+    handle.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1
+            or input.UserInputType == Enum.UserInputType.Touch then
+
+            dragging = true
+            dragStart = input.Position
+            startPosition = frame.Position
+            activeInput = input
+        end
+    end)
+
+    UserInputService.InputChanged:Connect(function(input)
+        if not dragging then return end
+
+        local isMouseMove =
+            activeInput.UserInputType == Enum.UserInputType.MouseButton1
+            and input.UserInputType == Enum.UserInputType.MouseMovement
+
+        local isTouchMove =
+            activeInput.UserInputType == Enum.UserInputType.Touch
+            and input == activeInput
+
+        if isMouseMove or isTouchMove then
+            local delta = input.Position - dragStart
+
+            frame.Position = UDim2.new(
+                startPosition.X.Scale,
+                startPosition.X.Offset + delta.X,
+                startPosition.Y.Scale,
+                startPosition.Y.Offset + delta.Y
+            )
+        end
+    end)
+
+    UserInputService.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1
+            or input == activeInput then
+            dragging = false
+            activeInput = nil
+        end
+    end)
+end
+
+-- Header is a dedicated drag handle.
+local header = create("TextLabel", {
+    Name = "DragHeader",
+    Size = UDim2.new(1, -55, 0, 42),
+    Position = UDim2.fromOffset(15, 8),
+    BackgroundTransparency = 1,
+    Text = "DON scripts",
+    TextColor3 = RED,
+    TextSize = 25,
+    Font = Enum.Font.GothamBold,
+    TextXAlignment = Enum.TextXAlignment.Left,
+    Active = true,
+}, main)
+
+makeDraggable(main, header)
+makeDraggable(openButton, openButton)
+
+create("TextLabel", {
+    Size = UDim2.new(1, -30, 0, 20),
+    Position = UDim2.fromOffset(15, 45),
+    BackgroundTransparency = 1,
+    Text = "GAME CONTROL PANEL",
+    TextColor3 = GRAY,
+    TextSize = 11,
+    Font = Enum.Font.Gotham,
+}, main)
+
+-- Feature toggles
+local features = {
+    "Fly",
+    "ESP / Player Highlighting",
+    "Nearest-Player Aim Assist",
+    "Speed Multiplier",
 }
 
-local currentTheme = Themes.Dark
+local states = {}
+local startY = 76
 
-----------------------------------------------------
--- 2. BUILD GUI INTERFACE
-----------------------------------------------------
-local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "DON_Scripts_UI"
-screenGui.ResetOnSpawn = false
-screenGui.Parent = guiParent
+for i, name in ipairs(features) do
+    states[name] = false
 
--- Toggle Open/Close Button (Bottom-Left)
-local toggleButton = Instance.new("TextButton")
-toggleButton.Name = "ToggleButton"
-toggleButton.Size = UDim2.new(0, 120, 0, 40)
-toggleButton.Position = UDim2.new(0, 15, 0.5, -20)
-toggleButton.BackgroundColor3 = currentTheme.HeaderBackground
-toggleButton.TextColor3 = currentTheme.TextColor
-toggleButton.TextSize = 14
-toggleButton.Font = Enum.Font.GothamBold
-toggleButton.Text = "Toggle Menu"
-toggleButton.Parent = screenGui
+    local row = create("Frame", {
+        Size = UDim2.new(1, -24, 0, 43),
+        Position = UDim2.fromOffset(12, startY + (i - 1) * 49),
+        BackgroundColor3 = ROW,
+        BorderSizePixel = 0,
+    }, main)
 
-local toggleCorner = Instance.new("UICorner")
-toggleCorner.CornerRadius = UDim.new(0, 8)
-toggleCorner.Parent = toggleButton
+    create("UICorner", {
+        CornerRadius = UDim.new(0, 7)
+    }, row)
 
--- Main Dashboard Window
-local mainFrame = Instance.new("Frame")
-mainFrame.Name = "MainFrame"
-mainFrame.Size = UDim2.new(0, 480, 0, 360)
-mainFrame.Position = UDim2.new(0.5, -240, 0.5, -180)
-mainFrame.BackgroundColor3 = currentTheme.MainBackground
-mainFrame.Visible = true
-mainFrame.Parent = screenGui
+    create("TextLabel", {
+        Size = UDim2.new(1, -95, 1, 0),
+        Position = UDim2.fromOffset(10, 0),
+        BackgroundTransparency = 1,
+        Text = name,
+        TextColor3 = WHITE,
+        TextSize = 12,
+        Font = Enum.Font.GothamMedium,
+        TextXAlignment = Enum.TextXAlignment.Left,
+    }, row)
 
-local mainCorner = Instance.new("UICorner")
-mainCorner.CornerRadius = UDim.new(0, 10)
-mainCorner.Parent = mainFrame
+    local button = create("TextButton", {
+        Size = UDim2.fromOffset(65, 29),
+        Position = UDim2.new(1, -75, 0.5, -14),
+        BackgroundColor3 = OFF,
+        Text = "OFF",
+        TextColor3 = WHITE,
+        TextSize = 12,
+        Font = Enum.Font.GothamBold,
+    }, row)
 
--- Title Bar
-local titleBar = Instance.new("TextLabel")
-titleBar.Name = "TitleBar"
-titleBar.Size = UDim2.new(1, 0, 0, 40)
-titleBar.BackgroundColor3 = currentTheme.HeaderBackground
-titleBar.BorderSizePixel = 0
-titleBar.TextColor3 = currentTheme.TextColor
-titleBar.TextSize = 16
-titleBar.Font = Enum.Font.GothamBold
-titleBar.Text = "DON Scripts - Client Dashboard"
-titleBar.Parent = mainFrame
+    create("UICorner", {
+        CornerRadius = UDim.new(0, 6)
+    }, button)
 
-local titleCorner = Instance.new("UICorner")
-titleCorner.CornerRadius = UDim.new(0, 10)
-titleCorner.Parent = titleBar
+    button.Activated:Connect(function()
+        states[name] = not states[name]
+        button.Text = states[name] and "ON" or "OFF"
+        button.BackgroundColor3 = states[name] and RED or OFF
 
--- Draggable Logic
-local dragging, dragInput, dragStart, startPos
+        -- Connect to your own game's authorized
+        -- feature implementation here.
+        print(name, states[name] and "enabled" or "disabled")
+    end)
+end
 
-titleBar.InputBegan:Connect(function(input)
-	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-		dragging = true
-		dragStart = input.Position
-		startPos = mainFrame.Position
-		
-		input.Changed:Connect(function()
-			if input.UserInputState == Enum.UserInputState.End then
-				dragging = false
-			end
-		end)
-	end
-end)
+-- Speed slider
+create("TextLabel", {
+    Size = UDim2.new(1, -24, 0, 25),
+    Position = UDim2.fromOffset(12, 280),
+    BackgroundTransparency = 1,
+    Text = "SPEED MULTIPLIER",
+    TextColor3 = WHITE,
+    TextSize = 13,
+    Font = Enum.Font.GothamBold,
+    TextXAlignment = Enum.TextXAlignment.Left,
+}, main)
 
-titleBar.InputChanged:Connect(function(input)
-	if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
-		dragInput = input
-	end
+local speed = 2
+
+local speedValue = create("TextLabel", {
+    Size = UDim2.fromOffset(55, 25),
+    Position = UDim2.new(1, -67, 0, 280),
+    BackgroundTransparency = 1,
+    Text = "2.0x",
+    TextColor3 = RED,
+    TextSize = 14,
+    Font = Enum.Font.GothamBold,
+}, main)
+
+local slider = create("TextButton", {
+    Size = UDim2.new(1, -30, 0, 12),
+    Position = UDim2.fromOffset(15, 315),
+    BackgroundColor3 = OFF,
+    Text = "",
+    AutoButtonColor = false,
+}, main)
+
+create("UICorner", {
+    CornerRadius = UDim.new(1, 0)
+}, slider)
+
+local fill = create("Frame", {
+    Size = UDim2.new(0.25, 0, 1, 0),
+    BackgroundColor3 = RED,
+    BorderSizePixel = 0,
+}, slider)
+
+create("UICorner", {
+    CornerRadius = UDim.new(1, 0)
+}, fill)
+
+local function updateSpeed(x)
+    local width = slider.AbsoluteSize.X
+    if width <= 0 then return end
+
+    local alpha = math.clamp(
+        (x - slider.AbsolutePosition.X) / width,
+        0, 1
+    )
+
+    speed = math.floor((1 + alpha * 4) * 2 + 0.5) / 2
+    fill.Size = UDim2.new((speed - 1) / 4, 0, 1, 0)
+    speedValue.Text = string.format("%.1fx", speed)
+
+    -- Apply speed through your own game's
+    -- movement system when the feature is enabled.
+end
+
+local sliderDragging = false
+
+slider.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1
+        or input.UserInputType == Enum.UserInputType.Touch then
+        sliderDragging = true
+        updateSpeed(input.Position.X)
+    end
 end)
 
 UserInputService.InputChanged:Connect(function(input)
-	if input == dragInput and dragging then
-		local delta = input.Position - dragStart
-		mainFrame.Position = UDim2.new(
-			startPos.X.Scale, 
-			startPos.X.Offset + delta.X, 
-			startPos.Y.Scale, 
-			startPos.Y.Offset + delta.Y
-		)
-	end
+    if sliderDragging and (
+        input.UserInputType == Enum.UserInputType.MouseMovement
+        or input.UserInputType == Enum.UserInputType.Touch
+    ) then
+        updateSpeed(input.Position.X)
+    end
 end)
 
--- Navigation Tab Bar
-local tabBar = Instance.new("Frame")
-tabBar.Name = "TabBar"
-tabBar.Size = UDim2.new(1, -20, 0, 35)
-tabBar.Position = UDim2.new(0, 10, 0, 48)
-tabBar.BackgroundTransparency = 1
-tabBar.Parent = mainFrame
-
-local tabLayout = Instance.new("UIListLayout")
-tabLayout.FillDirection = Enum.FillDirection.Horizontal
-tabLayout.SortOrder = Enum.SortOrder.LayoutOrder
-tabLayout.Padding = UDim.new(0, 8)
-tabLayout.Parent = tabBar
-
-local function createTabButton(name, order)
-	local btn = Instance.new("TextButton")
-	btn.Name = name .. "TabButton"
-	btn.Size = UDim2.new(0, 100, 1, 0)
-	btn.BackgroundColor3 = currentTheme.HeaderBackground
-	btn.BorderSizePixel = 0
-	btn.TextColor3 = currentTheme.TextColor
-	btn.TextSize = 13
-	btn.Font = Enum.Font.GothamSemibold
-	btn.Text = name
-	btn.LayoutOrder = order
-	btn.Parent = tabBar
-	
-	local corner = Instance.new("UICorner")
-	corner.CornerRadius = UDim.new(0, 6)
-	corner.Parent = btn
-	return btn
-end
-
-local movementTabBtn = createTabButton("Movement", 1)
-local fovTabBtn = createTabButton("FOV Overlay", 2)
-local settingsTabBtn = createTabButton("Settings", 3)
-
--- Content Container
-local contentContainer = Instance.new("Frame")
-contentContainer.Name = "ContentContainer"
-contentContainer.Size = UDim2.new(1, -20, 1, -95)
-contentContainer.Position = UDim2.new(0, 10, 0, 90)
-contentContainer.BackgroundTransparency = 1
-contentContainer.Parent = mainFrame
-
-local function createContentFrame(name)
-	local frm = Instance.new("ScrollingFrame")
-	frm.Name = name .. "TabFrame"
-	frm.Size = UDim2.new(1, 0, 1, 0)
-	frm.BackgroundTransparency = 1
-	frm.BorderSizePixel = 0
-	frm.CanvasSize = UDim2.new(0, 0, 0, 0)
-	frm.AutomaticCanvasSize = Enum.AutomaticSize.Y
-	frm.Visible = false
-	frm.Parent = contentContainer
-	
-	local layout = Instance.new("UIListLayout")
-	layout.FillDirection = Enum.FillDirection.Vertical
-	layout.SortOrder = Enum.SortOrder.LayoutOrder
-	layout.Padding = UDim.new(0, 10)
-	layout.Parent = frm
-	
-	return frm
-end
-
-local movementFrame = createContentFrame("Movement")
-local fovFrame = createContentFrame("FOV Overlay")
-local settingsFrame = createContentFrame("Settings")
-
--- Button Helper
-local function createFeatureButton(parent, text, order)
-	local btn = Instance.new("TextButton")
-	btn.Size = UDim2.new(1, 0, 0, 38)
-	btn.BackgroundColor3 = Color3.fromRGB(231, 76, 60)
-	btn.BorderSizePixel = 0
-	btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-	btn.TextSize = 13
-	btn.Font = Enum.Font.GothamSemibold
-	btn.Text = text
-	btn.LayoutOrder = order
-	btn.Parent = parent
-	
-	local corner = Instance.new("UICorner")
-	corner.CornerRadius = UDim.new(0, 6)
-	corner.Parent = btn
-	return btn
-end
-
-----------------------------------------------------
--- 3. FOV OVERLAY IMPLEMENTATION
-----------------------------------------------------
-local fovCircle = Instance.new("Frame")
-fovCircle.Name = "FOVCircle"
-fovCircle.AnchorPoint = Vector2.new(0.5, 0.5)
-fovCircle.Position = UDim2.new(0.5, 0, 0.5, 0)
-fovCircle.BackgroundTransparency = 1
-fovCircle.Size = UDim2.new(0, 200, 0, 200)
-fovCircle.Visible = false
-fovCircle.Parent = screenGui
-
-local fovStroke = Instance.new("UIStroke")
-fovStroke.Color = Color3.fromRGB(255, 255, 255)
-fovStroke.Thickness = 2
-fovStroke.Transparency = 0.2
-fovStroke.Parent = fovCircle
-
-local fovCorner = Instance.new("UICorner")
-fovCorner.CornerRadius = UDim.new(1, 0)
-fovCorner.Parent = fovCircle
-
-----------------------------------------------------
--- 4. CONTROLLERS & LOGIC
-----------------------------------------------------
-local isInfiniteJumpActive = false
-local isSpeedBoostActive = false
-local isFovVisible = false
-
-local fovColors = {
-	Color3.fromRGB(255, 255, 255),
-	Color3.fromRGB(255, 50, 50),
-	Color3.fromRGB(50, 255, 50),
-	Color3.fromRGB(50, 150, 255)
-}
-local fovColorNames = {"White", "Red", "Green", "Blue"}
-local currentFovColorIndex = 1
-
-local function updateButtonState(button, state, textPrefix)
-	if state then
-		button.Text = textPrefix .. ": ON"
-		button.BackgroundColor3 = Color3.fromRGB(46, 204, 113)
-	else
-		button.Text = textPrefix .. ": OFF"
-		button.BackgroundColor3 = Color3.fromRGB(231, 76, 60)
-	end
-end
-
--- Movement Buttons
-local speedBtn = createFeatureButton(movementFrame, "Speed Modifier: OFF", 1)
-local jumpBtn = createFeatureButton(movementFrame, "Infinite Jump: OFF", 2)
-
--- FOV Buttons
-local fovToggleBtn = createFeatureButton(fovFrame, "FOV Overlay: OFF", 1)
-local fovSizeBtn = createFeatureButton(fovFrame, "FOV Radius: 200px", 2)
-local fovColorBtn = createFeatureButton(fovFrame, "FOV Color: White", 3)
-
--- Settings Buttons
-local themeToggleBtn = createFeatureButton(settingsFrame, "Theme: Dark Mode", 1)
-
--- Tab Switcher
-local function showTab(targetFrame)
-	for _, child in ipairs(contentContainer:GetChildren()) do
-		if child:IsA("ScrollingFrame") then
-			child.Visible = false
-		end
-	end
-	targetFrame.Visible = true
-end
-
-movementTabBtn.MouseButton1Click:Connect(function() showTab(movementFrame) end)
-fovTabBtn.MouseButton1Click:Connect(function() showTab(fovFrame) end)
-settingsTabBtn.MouseButton1Click:Connect(function() showTab(settingsFrame) end)
-
-toggleButton.MouseButton1Click:Connect(function()
-	mainFrame.Visible = not mainFrame.Visible
+UserInputService.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1
+        or input.UserInputType == Enum.UserInputType.Touch then
+        sliderDragging = false
+    end
 end)
 
--- Speed Modifier
-speedBtn.MouseButton1Click:Connect(function()
-	isSpeedBoostActive = not isSpeedBoostActive
-	updateButtonState(speedBtn, isSpeedBoostActive, "Speed Modifier")
+create("TextLabel", {
+    Size = UDim2.new(1, -30, 0, 22),
+    Position = UDim2.fromOffset(15, 335),
+    BackgroundTransparency = 1,
+    Text = "DON scripts | Ready",
+    TextColor3 = GRAY,
+    TextSize = 11,
+    Font = Enum.Font.Gotham,
+}, main)
+
+-- Close button
+local close = create("TextButton", {
+    Size = UDim2.fromOffset(30, 30),
+    Position = UDim2.new(1, -38, 0, 10),
+    BackgroundColor3 = ROW,
+    Text = "X",
+    TextColor3 = RED,
+    TextSize = 15,
+    Font = Enum.Font.GothamBold,
+}, main)
+
+create("UICorner", {
+    CornerRadius = UDim.new(0, 6)
+}, close)
+
+-- Hide and reopen without destroying the GUI.
+close.Activated:Connect(function()
+    main.Visible = false
+    openButton.Visible = true
 end)
 
-RunService.Heartbeat:Connect(function()
-	local character = LocalPlayer.Character
-	if character and character:FindFirstChildOfClass("Humanoid") then
-		local humanoid = character:FindFirstChildOfClass("Humanoid")
-		if isSpeedBoostActive then
-			humanoid.WalkSpeed = 32
-		else
-			humanoid.WalkSpeed = 16
-		end
-	end
+openButton.Activated:Connect(function()
+    main.Visible = true
+    openButton.Visible = false
 end)
 
--- Infinite Jump
-jumpBtn.MouseButton1Click:Connect(function()
-	isInfiniteJumpActive = not isInfiniteJumpActive
-	updateButtonState(jumpBtn, isInfiniteJumpActive, "Infinite Jump")
-end)
-
-UserInputService.JumpRequest:Connect(function()
-	if isInfiniteJumpActive then
-		local character = LocalPlayer.Character
-		if character and character:FindFirstChildOfClass("Humanoid") then
-			character:FindFirstChildOfClass("Humanoid"):ChangeState(Enum.HumanoidStateType.Jumping)
-		end
-	end
-end)
-
--- FOV Circle Controls
-fovToggleBtn.MouseButton1Click:Connect(function()
-	isFovVisible = not isFovVisible
-	fovCircle.Visible = isFovVisible
-	updateButtonState(fovToggleBtn, isFovVisible, "FOV Overlay")
-end)
-
-fovSizeBtn.MouseButton1Click:Connect(function()
-	local currentSize = fovCircle.Size.X.Offset
-	local newSize = currentSize >= 400 and 100 or currentSize + 100
-	fovCircle.Size = UDim2.new(0, newSize, 0, newSize)
-	fovSizeBtn.Text = "FOV Radius: " .. tostring(newSize) .. "px"
-end)
-
-fovColorBtn.MouseButton1Click:Connect(function()
-	currentFovColorIndex = (currentFovColorIndex % #fovColors) + 1
-	fovStroke.Color = fovColors[currentFovColorIndex]
-	fovColorBtn.Text = "FOV Color: " .. fovColorNames[currentFovColorIndex]
-end)
-
--- Theme Switcher
-themeToggleBtn.MouseButton1Click:Connect(function()
-	if currentTheme == Themes.Dark then
-		currentTheme = Themes.Light
-		themeToggleBtn.Text = "Theme: Light Mode"
-	else
-		currentTheme = Themes.Dark
-		themeToggleBtn.Text = "Theme: Dark Mode"
-	end
-	
-	mainFrame.BackgroundColor3 = currentTheme.MainBackground
-	titleBar.BackgroundColor3 = currentTheme.HeaderBackground
-	titleBar.TextColor3 = currentTheme.TextColor
-	toggleButton.BackgroundColor3 = currentTheme.HeaderBackground
-	toggleButton.TextColor3 = currentTheme.TextColor
-end)
-
--- Initialize Default Tab
-showTab(movementFrame)
-
+print("DON scripts GUI loaded")
